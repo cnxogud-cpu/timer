@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>집중 & 휴식 타이머</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    body {
+      background-color: #000000;
+      color: #ffffff;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      min-height: 100vh;
+      min-height: 100dvh;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      padding: 20px;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 480px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+    }
+
+    /* 모드/프리셋 선택 버튼 그룹 */
+    .preset-group {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+
+    .preset-btn {
+      padding: 8px 16px;
+      font-size: 0.95rem;
+      font-weight: 500;
+      border-radius: 999px;
+      border: 1px solid #333333;
+      background-color: #111111;
+      color: #888888;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .preset-btn:hover {
+      background-color: #222222;
+      color: #ffffff;
+      border-color: #555555;
+    }
+
+    .preset-btn.active {
+      background-color: #ffffff;
+      color: #000000;
+      border-color: #ffffff;
+      font-weight: 700;
+    }
+
+    .preset-btn.active.break {
+      background-color: #4ade80;
+      color: #052e16;
+      border-color: #4ade80;
+    }
+
+    /* 현재 상태 태그 */
+    .status-badge {
+      display: inline-block;
+      padding: 8px 18px;
+      border-radius: 999px;
+      font-size: 1rem;
+      font-weight: 600;
+      letter-spacing: 0.05em;
+      margin-bottom: 24px;
+      border: 1px solid #333333;
+      background-color: #111111;
+      color: #aaaaaa;
+      transition: all 0.3s ease;
+    }
+
+    .status-badge.focus {
+      color: #ffffff;
+      border-color: #ffffff;
+      background-color: #1a1a1a;
+    }
+
+    .status-badge.break {
+      color: #4ade80;
+      border-color: #4ade80;
+      background-color: #052e16;
+    }
+
+    /* 타이머 숫자 디스플레이 */
+    .timer-display {
+      font-size: clamp(4.5rem, 18vw, 7.5rem);
+      font-weight: 700;
+      letter-spacing: 2px;
+      font-variant-numeric: tabular-nums;
+      line-height: 1;
+      margin: 12px 0 28px;
+      color: #ffffff;
+    }
+
+    /* 알림 메시지 영역 */
+    .message-banner {
+      min-height: 48px;
+      font-size: 1.125rem;
+      font-weight: 500;
+      line-height: 1.4;
+      color: #ffffff;
+      margin-bottom: 28px;
+      padding: 10px 16px;
+      border-radius: 8px;
+      transition: opacity 0.3s ease;
+      opacity: 0;
+    }
+
+    .message-banner.visible {
+      opacity: 1;
+      background-color: #1c1c1e;
+      border: 1px solid #2c2c2e;
+    }
+
+    /* 컨트롤 버튼 */
+    .button-group {
+      display: flex;
+      gap: 12px;
+      width: 100%;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+
+    button {
+      flex: 1 1 100px;
+      max-width: 130px;
+      padding: 16px 0;
+      font-size: 1.05rem;
+      font-weight: 600;
+      border: none;
+      border-radius: 12px;
+      cursor: pointer;
+      transition: transform 0.1s ease, background-color 0.2s ease, opacity 0.2s ease;
+      color: #ffffff;
+      background-color: #222222;
+    }
+
+    button:active {
+      transform: scale(0.96);
+    }
+
+    button:disabled {
+      opacity: 0.35;
+      cursor: not-allowed;
+    }
+
+    #btnStart {
+      background-color: #ffffff;
+      color: #000000;
+    }
+
+    #btnStart:hover:not(:disabled) {
+      background-color: #e5e5e5;
+    }
+
+    #btnPause {
+      background-color: #262626;
+    }
+
+    #btnPause:hover:not(:disabled) {
+      background-color: #333333;
+    }
+
+    #btnReset {
+      background-color: #1a1a1a;
+      color: #a3a3a3;
+      border: 1px solid #333333;
+    }
+
+    #btnReset:hover:not(:disabled) {
+      background-color: #262626;
+      color: #ffffff;
+    }
+  </style>
+</head>
+<body>
+  <main class="container">
+    <div class="preset-group" role="tablist">
+      <button id="presetFocus50" class="preset-btn active" type="button">집중 50분</button>
+      <button id="presetFocus25" class="preset-btn" type="button">집중 25분</button>
+      <button id="presetBreak10" class="preset-btn" type="button">휴식 10분</button>
+    </div>
+
+    <div id="statusBadge" class="status-badge focus">집중 시간</div>
+    <div id="timerDisplay" class="timer-display" aria-live="polite">50:00</div>
+    <div id="messageBanner" class="message-banner" role="status"></div>
+
+    <div class="button-group">
+      <button id="btnStart" type="button">시작</button>
+      <button id="btnPause" type="button" disabled>일시정지</button>
+      <button id="btnReset" type="button">초기화</button>
+    </div>
+  </main>
+
+  <script>
+    const BREAK_SECONDS = 10 * 60; // 10분
+
+    let selectedFocusSeconds = 50 * 60; // 50분 기본
+    let currentMode = 'focus'; // 'focus' | 'break'
+    let remainingSeconds = selectedFocusSeconds;
+    let timerId = null;
+
+    const statusBadge = document.getElementById('statusBadge');
+    const timerDisplay = document.getElementById('timerDisplay');
+    const messageBanner = document.getElementById('messageBanner');
+    const btnStart = document.getElementById('btnStart');
+    const btnPause = document.getElementById('btnPause');
+    const btnReset = document.getElementById('btnReset');
+
+    const presetFocus50 = document.getElementById('presetFocus50');
+    const presetFocus25 = document.getElementById('presetFocus25');
+    const presetBreak10 = document.getElementById('presetBreak10');
+    // Web Audio API를 활용한 알림음 (외부 파일 없이 작동)
+    function playBeep(type) {
+      try {
+        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+        if (!AudioCtx) return;
+        const ctx = new AudioCtx();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+
+        const now = ctx.currentTime;
+        if (type === 'focusEnd') {
+          // 2단 비프음
+          osc.frequency.setValueAtTime(587.33, now); // D5
+          osc.frequency.setValueAtTime(880, now + 0.15); // A5
+          gain.gain.setValueAtTime(0.15, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.45);
+          osc.start(now);
+          osc.stop(now + 0.45);
+        } else {
+          // 완료 긴 비프음
+          osc.frequency.setValueAtTime(523.25, now); // C5
+          gain.gain.setValueAtTime(0.2, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.6);
+          osc.start(now);
+          osc.stop(now + 0.6);
+        }
+      } catch (e) {
+        // 브라우저 오디오 권한 미부여 시 무시
+      }
+    }
+
+    function showMessage(text) {
+      messageBanner.textContent = text;
+      messageBanner.classList.add('visible');
+    }
+
+    function hideMessage() {
+      messageBanner.classList.remove('visible');
+      messageBanner.textContent = '';
+    }
+
+    function updateDisplay() {
+      const minutes = Math.floor(remainingSeconds / 60);
+      const seconds = remainingSeconds % 60;
+      const formatted = `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+      timerDisplay.textContent = formatted;
+      document.title = `${formatted} - ${currentMode === 'focus' ? '집중' : '휴식'}`;
+    }
+
+    function setMode(mode) {
+      currentMode = mode;
+      if (mode === 'focus') {
+        statusBadge.textContent = '집중 시간';
+        statusBadge.className = 'status-badge focus';
+      } else {
+        statusBadge.textContent = '휴식 시간';
+        statusBadge.className = 'status-badge break';
+      }
+    }
+
+    function setPreset(type) {
+      pauseTimer();
+      hideMessage();
+
+      presetFocus50.className = 'preset-btn';
+      presetFocus25.className = 'preset-btn';
+      presetBreak10.className = 'preset-btn';
+
+      if (type === 'focus50') {
+        selectedFocusSeconds = 50 * 60;
+        remainingSeconds = selectedFocusSeconds;
+        setMode('focus');
+        presetFocus50.className = 'preset-btn active';
+      } else if (type === 'focus25') {
+        selectedFocusSeconds = 25 * 60;
+        remainingSeconds = selectedFocusSeconds;
+        setMode('focus');
+        presetFocus25.className = 'preset-btn active';
+      } else if (type === 'break10') {
+        remainingSeconds = BREAK_SECONDS;
+        setMode('break');
+        presetBreak10.className = 'preset-btn active break';
+      }
+
+      updateDisplay();
+    }
+    function tick() {
+      if (remainingSeconds > 0) {
+        remainingSeconds--;
+        updateDisplay();
+      }
+
+      if (remainingSeconds === 0) {
+        if (currentMode === 'focus') {
+          playBeep('focusEnd');
+          showMessage('집중시간이 끝났습니다');
+          
+          // 바로 휴식 시간(10분)으로 전환 후 계속 카운트다운
+          setMode('break');
+          remainingSeconds = BREAK_SECONDS;
+          updateDisplay();
+        } else {
+          // 휴식 시간 종료
+          clearInterval(timerId);
+          timerId = null;
+          playBeep('breakEnd');
+          showMessage('휴식시간이 끝났습니다');
+          
+          btnStart.disabled = false;
+          btnPause.disabled = true;
+        }
+      }
+    }
+
+    function startTimer() {
+      if (timerId !== null) return;
+
+      hideMessage();
+      timerId = setInterval(tick, 1000);
+
+      btnStart.disabled = true;
+      btnPause.disabled = false;
+    }
+
+    function pauseTimer() {
+      if (timerId === null) return;
+
+      clearInterval(timerId);
+      timerId = null;
+
+      btnStart.disabled = false;
+      btnPause.disabled = true;
+    }
+
+    function resetTimer() {
+      clearInterval(timerId);
+      timerId = null;
+
+      // 현재 모드에 맞게 선택된 시간으로 초기화
+      if (currentMode === 'focus') {
+        remainingSeconds = selectedFocusSeconds;
+      } else {
+        remainingSeconds = BREAK_SECONDS;
+      }
+
+      updateDisplay();
+      hideMessage();
+
+      btnStart.disabled = false;
+      btnPause.disabled = true;
+    }
+
+    presetFocus50.addEventListener('click', () => setPreset('focus50'));
+    presetFocus25.addEventListener('click', () => setPreset('focus25'));
+    presetBreak10.addEventListener('click', () => setPreset('break10'));
+
+    btnStart.addEventListener('click', startTimer);
+    btnPause.addEventListener('click', pauseTimer);
+    btnReset.addEventListener('click', resetTimer);
+
+    // 초기 상태 렌더링
+    updateDisplay();
+  </script>
+</body>
+</html>
